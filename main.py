@@ -1,3 +1,7 @@
+import sort
+import numpy as np
+from numba import njit
+
 helmets = {
     'Iron Helmet': {'defense': 5, 'weight': 10},
     'Steel Helmet': {'defense': 8, 'weight': 12},
@@ -35,7 +39,9 @@ necklaces = {
     'Platinum Necklace': {'magic': 14, 'weight': 3},
 }
 
-
+def get_stat_to_optimize() -> str:
+    stat = input('Enter the stat to optimize: ').strip().lower()
+    return stat
 
 
 
@@ -55,7 +61,8 @@ def get_stats_for_item_groups(items_type_1: dict[str, dict[str, int]], items_typ
             combinations[f'{item_type_1} + {item_type_2}'] = combination
     return combinations
 
-if __name__ == '__main__':
+
+def get_all_combinations() -> dict[str, dict[str, int]]:
     top_parts = get_stats_for_item_groups(helmets, armors)
     bottom_parts = get_stats_for_item_groups(leggings, boots)
     rings_combinations = get_stats_for_item_groups(rings, rings)
@@ -63,5 +70,33 @@ if __name__ == '__main__':
     jewelry_combinations = get_stats_for_item_groups(rings_combinations, big_jewels)
     protections = get_stats_for_item_groups(top_parts, bottom_parts)
     all_combinations = get_stats_for_item_groups(protections, jewelry_combinations)
-    for combo_name, stats in all_combinations.items():
-        print(f'{combo_name}: {stats}')
+    return all_combinations
+
+def filter_combinations_by_stat(combinations: dict[str, dict[str, int]], stat: str) -> dict[str, dict[str, int]]:
+    filtered: dict[str, dict[str, int]] = {}
+    for combo_name, stats in combinations.items():
+        if stat in stats:
+            filtered[combo_name] = stats
+    return filtered
+
+def sort_combinations_by_stat(combinations: dict[str, dict[str, int]], stat: str) -> list[str]:
+    stat_values: dict[str, int] = {}
+    for combo_name, stats in combinations.items():
+        stat_values[combo_name] = stats.get(stat, 0)
+    sorted_combinations = sort.sort_dict(stat_values)
+    return sorted_combinations[0]
+
+
+def main():
+    stat_to_optimize = get_stat_to_optimize()
+    all_combinations = get_all_combinations()
+    filtered_combinations = filter_combinations_by_stat(all_combinations, stat_to_optimize)
+    sorted_names = sort_combinations_by_stat(filtered_combinations, stat_to_optimize)
+    for name in sorted_names:
+        stats = filtered_combinations[name]
+        print(f'{name}: {stats}')
+
+
+
+if __name__ == '__main__':
+    main()
