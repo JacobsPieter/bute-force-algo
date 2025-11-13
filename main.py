@@ -1,10 +1,16 @@
 import sort
 import filtering
+import parse_items
 import numpy as np
 from numba import njit
 
 
 #test data for different item types
+""" weapons = {
+    'Sword': {'attack': 15, 'weight': 20, 'durability': 50},
+    'Axe': {'attack': 20, 'weight': 30, 'durability': 40},
+    'Bow': {'attack': 10, 'weight': 15, 'range': 50},
+}
 helmets = {
     'Iron Helmet': {'defense': 5, 'weight': 10, 'durability': 50},
     'Steel Helmet': {'defense': 8, 'weight': 12, 'durability': 70},
@@ -40,7 +46,7 @@ necklaces = {
     'Silver Necklace': {'magic': 4, 'weight': 1, 'health_regeneration': 3},
     'Gold Necklace': {'magic': 9, 'weight': 2, 'health_boost': 5},
     'Platinum Necklace': {'magic': 14, 'weight': 3, 'resistance': 4},
-}
+} """
 
 def get_stat_to_optimize() -> str:
     stat = input('Enter the stat to optimize: ').strip().lower()
@@ -69,10 +75,23 @@ def get_required_stats_dict(stat_to_optimise: str) -> dict[str, int]:
     return required_stats_dict
 
 
-def combine_stats(item_1: dict[str, int], item_2: dict[str, int]) -> dict[str, int]:
-    combined: dict[str, int] = {}
+def combine_stats(item_1: dict, item_2: dict) -> dict:
+    combined: dict = {}
     for stat in set(item_1.keys()).union(item_2.keys()):
-        combined[stat] = item_1.get(stat, 0) + item_2.get(stat, 0)
+        if item_1.get(stat) is None:
+            combined[stat] = item_2.get(stat, 0)
+            continue
+        if item_2.get(stat) is None:
+            combined[stat] = item_1.get(stat, 0)
+            continue
+        if isinstance(item_1[stat], int | float) and isinstance(item_2[stat], int | float):
+            combined[stat] = item_1.get(stat, 0) + item_2.get(stat, 0)
+        elif isinstance(item_1[stat], str) and isinstance(item_2[stat], str):
+            combined[stat] = item_1.get(stat, '') + ', ' + item_2.get(stat, '')
+        elif isinstance(item_1[stat], list) and isinstance(item_2[stat], list):
+            combined[stat] = item_1.get(stat, []) + item_2.get(stat, [])
+        else:
+            print(f'Unknown stat type for stat {stat}')
     return combined
 
 
@@ -86,13 +105,18 @@ def get_stats_for_item_groups(items_type_1: dict[str, dict[str, int]], items_typ
 
 
 def get_all_combinations() -> dict[str, dict[str, int]]:
-    top_parts = get_stats_for_item_groups(helmets, armors)
-    bottom_parts = get_stats_for_item_groups(leggings, boots)
-    rings_combinations = get_stats_for_item_groups(rings, rings)
-    big_jewels = get_stats_for_item_groups(bracelets, necklaces)
+    items = parse_items.parse_items()
+    top_parts = get_stats_for_item_groups(items[0], items[1])
+    bottom_parts = get_stats_for_item_groups(items[2], items[3])
+    rings_combinations = get_stats_for_item_groups(items[4], items[5])
+    big_jewels = get_stats_for_item_groups(items[6], items[7])
     jewelry_combinations = get_stats_for_item_groups(rings_combinations, big_jewels)
     protections = get_stats_for_item_groups(top_parts, bottom_parts)
-    all_combinations = get_stats_for_item_groups(protections, jewelry_combinations)
+    equipment_combinations = get_stats_for_item_groups(protections, jewelry_combinations)
+    weapons = {}
+    for weapon_group in items[8:12]:
+        weapons.update(weapon_group)
+    all_combinations = get_stats_for_item_groups(weapons, equipment_combinations)
     return all_combinations
 
 
@@ -105,11 +129,7 @@ def sort_combinations_by_stat(combinations: dict[str, dict[str, int]], stat: str
     return sorted_combinations[0]
 
 
-def main():
-    stat_to_optimize = get_stat_to_optimize()
-    required_stats = get_required_stats_dict(stat_to_optimize)
-    all_combinations = get_all_combinations()
-    filtered_combinations = filtering.filter(all_combinations, required_stats)
+def return_comibinations(filtered_combinations: dict[str, dict[str, int]], stat_to_optimize: str):
     if len(filtered_combinations) == 0:
         print('No combinations found that meet the required stats.')
         return
@@ -123,6 +143,17 @@ def main():
     for name in sorted_names:
         stats = filtered_combinations[name]
         print(f'{name}: {stats}')
+
+
+
+
+
+def main():
+    stat_to_optimize = get_stat_to_optimize()
+    required_stats = get_required_stats_dict(stat_to_optimize)
+    all_combinations = get_all_combinations()
+    filtered_combinations = filtering.filter(all_combinations, required_stats)
+    return_comibinations(filtered_combinations, stat_to_optimize)
 
 
 
