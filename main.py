@@ -118,7 +118,19 @@ def get_all_combinations() -> dict[str, dict[str, int]]:
     print('then the big jewels (bracelets and necklaces)...')
     big_jewels = get_stats_for_item_groups(items[6], items[7])
     print('combining rings with big jewels...')
-    jewelry_combinations = get_stats_for_item_groups(rings_combinations, big_jewels)
+    rings_combinations1  = {}
+    rings_combinations_keys = list(rings_combinations.keys())
+    for i in range(len(rings_combinations_keys)//2):
+        rings_combinations1[rings_combinations_keys[i]] = rings_combinations[rings_combinations_keys[i]]
+    jewelry_combinations1 = get_stats_for_item_groups(rings_combinations1, big_jewels)
+    print('finished first run')
+    rings_combinations2  = {}
+    rings_combinations_keys = list(rings_combinations.keys())
+    for i in range(len(rings_combinations_keys)//2):
+        rings_combinations2[rings_combinations_keys[i]] = rings_combinations[rings_combinations_keys[i]]
+    jewelry_combinations2 = get_stats_for_item_groups(rings_combinations2, big_jewels)
+    jewelry_combinations = jewelry_combinations1
+    jewelry_combinations.update(jewelry_combinations2)
     print('combining armour parts...')
     protections = get_stats_for_item_groups(top_parts, bottom_parts)
     print('now the total of armour and jewelry...')
