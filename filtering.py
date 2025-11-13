@@ -15,8 +15,10 @@ def filter_combinations_by_stat(combinations: dict[str, dict[str, int]], stat: s
 
 
 def filter(combinations: dict[str, dict[str, int]], required_stats: dict[str, int]) -> dict[str, dict[str, int]]:
+    print('Filtering combinations based on required stats...')
     new_combinations = combinations.copy()
     for stat in required_stats.keys():
+        print('Filtering by stat:', stat)
         min_value = required_stats[stat]
         new_combinations = filter_combinations_by_stat(new_combinations, stat, min_value)
     return new_combinations

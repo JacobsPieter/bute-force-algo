@@ -106,17 +106,29 @@ def get_stats_for_item_groups(items_type_1: dict[str, dict[str, int]], items_typ
 
 def get_all_combinations() -> dict[str, dict[str, int]]:
     items = parse_items.parse_items()
+    print('Generating all possible combinations of items...')
+    print('This may take a while depending on the number of items...')
+    print('starting the top parts of the armour...')
     top_parts = get_stats_for_item_groups(items[0], items[1])
+    print('now the bottom parts of the armour...')
     bottom_parts = get_stats_for_item_groups(items[2], items[3])
+    print('now the jewelry...')
+    print('first the rings...')
     rings_combinations = get_stats_for_item_groups(items[4], items[5])
+    print('then the big jewels (bracelets and necklaces)...')
     big_jewels = get_stats_for_item_groups(items[6], items[7])
+    print('combining rings with big jewels...')
     jewelry_combinations = get_stats_for_item_groups(rings_combinations, big_jewels)
+    print('combining armour parts...')
     protections = get_stats_for_item_groups(top_parts, bottom_parts)
+    print('now the total of armour and jewelry...')
     equipment_combinations = get_stats_for_item_groups(protections, jewelry_combinations)
+    print('finally adding the weapons...')
     weapons = {}
     for weapon_group in items[8:12]:
         weapons.update(weapon_group)
     all_combinations = get_stats_for_item_groups(weapons, equipment_combinations)
+    print('All combinations generated.')
     return all_combinations
 
 
@@ -139,6 +151,7 @@ def return_comibinations(filtered_combinations: dict[str, dict[str, int]], stat_
             print(f'{name}: {stats}')
         return
     print(f'Found {len(filtered_combinations)} combinations that meet the required stats. Sorting by {stat_to_optimize}...')
+    print('this may take a while...')
     sorted_names = sort_combinations_by_stat(filtered_combinations, stat_to_optimize)
     for name in sorted_names:
         stats = filtered_combinations[name]
