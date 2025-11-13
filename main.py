@@ -46,13 +46,27 @@ def get_stat_to_optimize() -> str:
     stat = input('Enter the stat to optimize: ').strip().lower()
     return stat
 
-def get_required_stats(stat_to_optimise: str) -> list[str]:
+def get_required_stats() -> list[str]:
     stats_input = input('Enter the required stats (comma-separated): ').strip().lower()
-    if stats_input == '':
-        return [stat_to_optimise]
     required_stats = [stat.strip() for stat in stats_input.split(',')]
-    required_stats.append(stat_to_optimise)
     return required_stats
+
+def get_min_value_for_stat(required_stats: list[str]) -> list[int]:
+    min_value_input = input('Enter the minimum value for the required stats (comma-seperated, same order as required stats): ').strip()
+    min_values = [int(value.strip()) for value in min_value_input.split(',')]
+    return min_values
+
+def get_required_stats_dict(stat_to_optimise: str) -> dict[str, int]:
+    required_stats = get_required_stats()
+    required_stats_dict: dict[str, int] = {}
+    if required_stats != ['']:
+        min_values = get_min_value_for_stat(required_stats)
+        for i, stat in enumerate(required_stats):
+            if stat == stat_to_optimise:
+                continue
+            required_stats_dict[stat] = min_values[i]
+    required_stats_dict[stat_to_optimise] = -1
+    return required_stats_dict
 
 
 def combine_stats(item_1: dict[str, int], item_2: dict[str, int]) -> dict[str, int]:
@@ -93,9 +107,18 @@ def sort_combinations_by_stat(combinations: dict[str, dict[str, int]], stat: str
 
 def main():
     stat_to_optimize = get_stat_to_optimize()
-    required_stats = get_required_stats(stat_to_optimize)
+    required_stats = get_required_stats_dict(stat_to_optimize)
     all_combinations = get_all_combinations()
     filtered_combinations = filtering.filter(all_combinations, required_stats)
+    if len(filtered_combinations) == 0:
+        print('No combinations found that meet the required stats.')
+        return
+    if len(filtered_combinations) == 1:
+        print('Only one combination found that meets the required stats:')
+        for name, stats in filtered_combinations.items():
+            print(f'{name}: {stats}')
+        return
+    print(f'Found {len(filtered_combinations)} combinations that meet the required stats. Sorting by {stat_to_optimize}...')
     sorted_names = sort_combinations_by_stat(filtered_combinations, stat_to_optimize)
     for name in sorted_names:
         stats = filtered_combinations[name]
