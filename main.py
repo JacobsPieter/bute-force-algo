@@ -7,47 +7,7 @@ import json
 
 
 #test data for different item types
-""" weapons = {
-    'Sword': {'attack': 15, 'weight': 20, 'durability': 50},
-    'Axe': {'attack': 20, 'weight': 30, 'durability': 40},
-    'Bow': {'attack': 10, 'weight': 15, 'range': 50},
-}
-helmets = {
-    'Iron Helmet': {'defense': 5, 'weight': 10, 'durability': 50},
-    'Steel Helmet': {'defense': 8, 'weight': 12, 'durability': 70},
-    'Golden Helmet': {'defense': 6, 'weight': 9, 'magic_resistance': 5},
-    'Diamond Helmet': {'defense': 12, 'weight': 15, 'durability': 100},
-}
-armors = {
-    'Leather Armor': {'defense': 15, 'weight': 25, 'agility': 5},
-    'Chainmail Armor': {'defense': 25, 'weight': 40, 'knockback_resistance': 5},
-    'Plate Armor': {'defense': 40, 'weight': 60, 'strength': 10},
-}
-leggings = {
-    'Cloth Leggings': {'defense': 3, 'weight': 5, 'flexibility': 7},
-    'Leather Leggings': {'defense': 7, 'weight': 15, 'agility': 4},
-    'Iron Leggings': {'defense': 12, 'weight': 30, 'durability': 40},
-}
-boots = {
-    'Cloth Boots': {'defense': 2, 'weight': 4, 'speed': 5},
-    'Leather Boots': {'defense': 5, 'weight': 10, 'agility': 3},
-    'Iron Boots': {'defense': 10, 'weight': 20, 'durability': 30},
-}
-rings = {
-    'Silver Ring': {'magic': 5, 'weight': 1, 'mana_regeneration': 2},
-    'Gold Ring': {'magic': 10, 'weight': 2, 'mana_regeneration': 5},
-    'Platinum Ring': {'magic': 15, 'weight': 3, 'main_attack_boost': 3},
-}
-bracelets = {
-    'Silver Bracelet': {'magic': 3, 'weight': 1, 'durability': 5},
-    'Gold Bracelet': {'magic': 7, 'weight': 2, 'strength': 4},
-    'Platinum Bracelet': {'magic': 12, 'weight': 3, 'defense': 6},
-}
-necklaces = {
-    'Silver Necklace': {'magic': 4, 'weight': 1, 'health_regeneration': 3},
-    'Gold Necklace': {'magic': 9, 'weight': 2, 'health_boost': 5},
-    'Platinum Necklace': {'magic': 14, 'weight': 3, 'resistance': 4},
-} """
+
 
 def get_stat_to_optimize() -> str:
     stat = input('Enter the stat to optimize: ').strip().lower()
