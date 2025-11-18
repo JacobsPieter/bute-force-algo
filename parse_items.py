@@ -1,32 +1,23 @@
+# parse_items.py
 import json
 import numpy as np
 from typing import Dict, Tuple, List
 
-
 def parse_stat_value(value):
     """
     Convert any JSON stat value into a single numeric value.
-    - ints/floats → int
-    - lists → sum of numeric entries
-    - booleans → int(value)
-    - strings → 0 (because 'Blunt Force' etc.)
-    - None → 0
-    - everything else → 0
+    - ints/floats -> int
+    - lists -> sum of numeric entries (ignore non-numeric)
+    - booleans -> int(value)
+    - strings -> 0
+    - None -> 0
     """
-
-    # None
     if value is None:
         return 0
-
-    # Boolean → 0 or 1
     if isinstance(value, bool):
         return int(value)
-
-    # Integer or float
     if isinstance(value, (int, float)):
         return int(value)
-
-    # List (sum numeric entries)
     if isinstance(value, list):
         total = 0
         for v in value:
@@ -35,74 +26,82 @@ def parse_stat_value(value):
             except (ValueError, TypeError):
                 continue
         return total
-
-    # Strings → 0 (e.g. "Blunt Force", "Fire", "Unique", etc.)
-    if isinstance(value, str):
-        return 0
-
-    # Fallback
+    # strings or other types -> 0
     return 0
 
 
 def load_items_from_json(json_path: str) -> Tuple[List[Dict], Dict]:
+    """
+    Load items.json and build numpy arrays (int64) per slot + name lists + stat_order.
+    Expected items.json structure: {"items": [ <item dicts> ] }
+    """
     with open(json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    items = data["items"]
+    items = data.get("items", [])
 
-    # Determine stat keys
+    # Determine stat keys (exclude metadata keys)
+    skip_keys = {"name", "id", "category", "type", "drop", "lore", "icon", "tier", "displayName", "dropInfo"}
     stat_keys = set()
     for item in items:
-        for k, v in item.items():
-            # Skip metadata fields
-            if k not in ("name", "id", "category", "type", "drop", "lore", "icon", "tier"):
+        for k in item.keys():
+            if k not in skip_keys:
                 stat_keys.add(k)
-
     stat_order = list(stat_keys)
 
-    categories = ["weapon", "helmet", "chestplate", "legging", "boot", "ring", "bracelet", "necklace"]
-    arrays_dict = {}
-    names_dict = {}
+    # Slot mapping: depends on how items label type/category in your JSON.
+    # These are the slot types this project expects; change if your JSON uses other strings.
+    slots = ["weapon", "helmet", "chestplate", "leggings", "boots", "ring", "bracelet", "necklace"]
 
-    for cat in categories:
-        cat_items = [i for i in items if i.get("type") == cat or i.get("category") == cat]
+    arrays = {}
+    names = {}
 
-        stats_arr = np.zeros((len(cat_items), len(stat_order)), dtype=np.int64)
-        names_arr = []
+    # For each slot, collect items whose 'type' equals slot OR whose 'category' equals slot.
+    for slot in slots:
+        slot_items = [it for it in items if (it.get("type") == slot or it.get("category") == slot)]
+        n = len(slot_items)
+        stats_arr = np.zeros((n, len(stat_order)), dtype=np.int64)
+        name_list = []
+        for i, it in enumerate(slot_items):
+            name_list.append(it.get("name", f"{slot}_{i}"))
+            for si, stat in enumerate(stat_order):
+                raw = it.get(stat, 0)
+                stats_arr[i, si] = parse_stat_value(raw)
+        arrays[f"{slot}_stats"] = stats_arr
+        names[f"{slot}_names"] = name_list
 
-        for idx, item in enumerate(cat_items):
-            names_arr.append(item.get("name", f"{cat}_{idx}"))
-
-            for s_idx, stat in enumerate(stat_order):
-                raw_value = item.get(stat, 0)
-                stats_arr[idx, s_idx] = parse_stat_value(raw_value)
-
-        arrays_dict[f"{cat}_stats"] = stats_arr
-        names_dict[f"{cat}_names"] = names_arr
-
-    numba_structs = {**arrays_dict, **names_dict, "stat_order": stat_order}
-    return items, numba_structs
+    # Special: rings are two slots in final combination; we'll reuse ring_stats for both ring slots.
+    # Return stat_order so caller can map stat names to indices.
+    structs = {**arrays, **names, "stat_order": stat_order}
+    return items, structs
 
 
 def make_required_stats_array(required_stats: dict, stat_order: list) -> np.ndarray:
     arr = np.zeros(len(stat_order), dtype=np.int64)
     for idx, stat in enumerate(stat_order):
-        arr[idx] = required_stats.get(stat, 0)
+        if stat in required_stats:
+            try:
+                arr[idx] = int(required_stats[stat])
+            except (ValueError, TypeError):
+                arr[idx] = 0
     return arr
 
 
-def reconstruct_combination_name(indices: np.ndarray, numba_structs: dict) -> str:
+def reconstruct_combination_name(indices: np.ndarray, structs: Dict) -> str:
+    """
+    indices: array-like length 9: [weapon,helmet,chest,legging,boot,ring1,ring2,bracelet,necklace]
+    """
     try:
         return (
-            f"{numba_structs['weapon_names'][indices[0]]} + "
-            f"{numba_structs['helmet_names'][indices[1]]} + "
-            f"{numba_structs['chestplate_names'][indices[2]]} + "
-            f"{numba_structs['legging_names'][indices[3]]} + "
-            f"{numba_structs['boot_names'][indices[4]]} + "
-            f"{numba_structs['ring_names'][indices[5]]} + "
-            f"{numba_structs['ring_names'][indices[6]]} + "
-            f"{numba_structs['bracelet_names'][indices[7]]} + "
-            f"{numba_structs['necklace_names'][indices[8]]}"
+            f"{structs['weapon_names'][int(indices[0])]} + "
+            f"{structs['helmet_names'][int(indices[1])]} + "
+            f"{structs['chestplate_names'][int(indices[2])]} + "
+            f"{structs['legging_names'][int(indices[3])]} + "
+            f"{structs['boot_names'][int(indices[4])]} + "
+            f"{structs['ring_names'][int(indices[5])]} + "
+            f"{structs['ring_names'][int(indices[6])]} + "
+            f"{structs['bracelet_names'][int(indices[7])]} + "
+            f"{structs['necklace_names'][int(indices[8])]}"
         )
-    except IndexError:
+    except Exception:
         return "Invalid combination"
