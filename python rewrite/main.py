@@ -98,17 +98,22 @@ def get_permutations(database_path):
     best_list = []
     worst_best_value = 0
 
+    helmets_chestplates = [x for x in precompute(helmets, chestplates)]
+    leggings_boots = [x for x in precompute(leggings, boots)]
+    all_rings = [x for x in precompute(rings, rings)]
+    bracelets_necklaces = [x for x in precompute(bracelets, necklaces)]
+
     
-    for hccombo in precompute(helmets, chestplates):
-        for lbcombo in precompute(leggings, boots):
+    for hccombo in helmets_chestplates:
+        for lbcombo in leggings_boots:
             hclbcombo = combine(hccombo, lbcombo)
             if not skill_point_fast_check(list(hclbcombo.values())[0]):
                 continue
-            for rrcombo in precompute(rings, rings):
+            for rrcombo in all_rings:
                 hclbrrcombo = combine(hclbcombo, rrcombo)
                 if not skill_point_fast_check(list(hclbrrcombo.values())[0]):
                     continue
-                for bncombo in precompute(bracelets, necklaces):
+                for bncombo in bracelets_necklaces:
                     hclbrrbncombo = combine(hclbrrcombo, bncombo)
                     final_combo = hclbrrbncombo
                     values = list(final_combo.values())[0]
