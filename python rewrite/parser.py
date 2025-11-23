@@ -58,9 +58,9 @@ def parse_items(data_file):
             case 'spear':
                 spears[item['name']] = get_data_keys(item)
             case 'bow':
-                bows[item['name']] = get_data_keys(item)    
+                bows[item['name']] = get_data_keys(item)
             case 'dagger':
-                daggers[item['name']] = get_data_keys(item)    
+                daggers[item['name']] = get_data_keys(item)
             case 'wand':
                 wands[item['name']] = get_data_keys(item)
             case 'relik':
