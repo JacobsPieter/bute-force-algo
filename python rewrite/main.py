@@ -1,5 +1,9 @@
 import parser
+import human_readable_stat_names_and_indices as names_and_indices
+
 import itertools
+import numpy as np
+from numba import njit
 import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor
 import heapq
@@ -19,11 +23,11 @@ MAX_AGIREQ: int = 333
 
 def get_stat_to_optimise():
     if BENCHMARK:
-        return 'Dam'
+        return names_and_indices.STAT_INDICES['hp']
     else:
         new_input = input('Give stat to optimize: ')
-        new_input.strip()
-        return new_input
+        new_input.strip().lower()
+        return names_and_indices.STAT_INDICES[new_input]
 
 def get_max_best_length():
     if BENCHMARK:
@@ -33,13 +37,13 @@ def get_max_best_length():
         numerical_input = int(new_input.strip().lower())
         return numerical_input
 
-
-def skill_point_fast_check(stats: dict[str, int]) -> bool:
-    str_req = stats.get('strReq', 0)
-    dex_req = stats.get('dexReq', 0)
-    int_req = stats.get('intReq', 0)
-    def_req = stats.get('defReq', 0)
-    agi_req = stats.get('agiReq', 0)
+@njit
+def skill_point_fast_check(stats: np.ndarray, required_stats: tuple[int, int, int, int, int]) -> bool:
+    str_req = stats[required_stats[0]]
+    dex_req = stats[required_stats[1]]
+    int_req = stats[required_stats[2]]
+    def_req = stats[required_stats[3]]
+    agi_req = stats[required_stats[4]]
     if str_req + dex_req + int_req + def_req + agi_req > MAX_SKILL_POINTS:
         return False
     if str_req > MAX_STRREQ:
@@ -55,35 +59,26 @@ def skill_point_fast_check(stats: dict[str, int]) -> bool:
     return True
 
 
-
-def combine(combo1: dict[str, dict[str, int]], combo2: dict[str, dict[str, int]]):
-    combo1_values = list(combo1.values())[0]
-    combo2_values = list(combo2.values())[0]
-    combo1_keys_set = set(combo1_values.keys())
-    combo2_keys_set = set(combo1_values.keys())
-    resulting_stats: dict[str, int] = {}
-    resulting_name: str = ''.join((list(combo1.keys())[0], ', ', list(combo2.keys())[0]))
-    for key in combo1_keys_set.union(combo2_keys_set):
-        resulting_stats[key] = combo1_values.get(key, 0) + combo2_values.get(key, 0)
-    return {resulting_name: resulting_stats}
+@njit
+def combine(combo1: tuple[str, np.ndarray], combo2: tuple[str, np.ndarray]):
+    combo1_values = combo1[1]
+    combo2_values = combo2[1]
+    resulting_stats = np.add(combo1_values, combo2_values)
+    resulting_name = f'{combo1[0]}, {combo2[0]}'
+    return resulting_name, resulting_stats
 
 
 
-
-def precompute(items1: dict[str,dict[str, int]], items2: dict[str,dict[str, int]]):
-    combinations_keys = itertools.product(items1.keys(), items2.keys())
-    combinations_values = itertools.product(items1.values(), items2.values())
-    for i, key in enumerate(combinations_keys):
-        combination = next(combinations_values)
-        item1_keys_set = set(combination[0].keys())
-        item2_keys_set = set(combination[1].keys())
-        resulting_stats: dict[str, int] = {}
-        resulting_name: str = ''.join((key[0], ', ', key[1]))
-        for key in item1_keys_set.union(item2_keys_set):
-            resulting_stats[key] = combination[0].get(key, 0) + combination[1].get(key, 0)
-        if not skill_point_fast_check(resulting_stats):
+def precompute(items1: list[tuple[str, np.ndarray]], items2: list[tuple[str, np.ndarray]], skill_points_req_array_pos: tuple):
+    combinations = itertools.product(items1, items2)
+    for i, combination in enumerate(combinations):
+        name_1, name_2 = combination[0][0], combination[1][0]
+        combination_values_1, combination_values_2 = combination[0][1], combination[1][1]
+        resulting_stats = np.add(combination_values_1, combination_values_2)
+        resulting_name = f'{name_1}, {name_2}'
+        if not skill_point_fast_check(resulting_stats, skill_points_req_array_pos):
             continue
-        yield {resulting_name: resulting_stats}
+        yield (resulting_name, resulting_stats)
 
 
 
@@ -94,8 +89,8 @@ def dict_from_map_object(to_convert) -> dict[str, dict[str, int]]:
     return converted
 
 
-
-def process_hccombo(hccombo, leggings_boots, all_rings, bracelets_necklaces, stat_to_optimise, max_best_length, index, total):
+@njit
+def process_hccombo(hccombo, leggings_boots, all_rings, bracelets_necklaces, stat_to_optimise, max_best_length, index, total, skill_points_req_array_pos: tuple):
     local_heap = []
     len_lb = len(leggings_boots)
     cnt = 0
@@ -103,20 +98,20 @@ def process_hccombo(hccombo, leggings_boots, all_rings, bracelets_necklaces, sta
 
     for lbcombo in leggings_boots:
         hclbcombo = combine(hccombo, lbcombo)
-        if not skill_point_fast_check(list(hclbcombo.values())[0]):
+        if not skill_point_fast_check(hclbcombo[1], skill_points_req_array_pos):
             continue
         for rrcombo in all_rings:
             hclbrrcombo = combine(hclbcombo, rrcombo)
-            if not skill_point_fast_check(list(hclbrrcombo.values())[0]):
+            if not skill_point_fast_check(hclbrrcombo[1], skill_points_req_array_pos):
                 continue
             for bncombo in bracelets_necklaces:
                 hclbrrbncombo = combine(hclbrrcombo, bncombo)
                 final_combo = hclbrrbncombo
-                values = list(final_combo.values())[0]
-                if not skill_point_fast_check(values):
+                values = final_combo[1]
+                if not skill_point_fast_check(values, skill_points_req_array_pos):
                     continue
-                current_value = values.get(stat_to_optimise, 0)
-                heapq.heappush(local_heap, (current_value * -1, final_combo))
+                current_value = values[stat_to_optimise]
+                heapq.heappush(local_heap, (-current_value, final_combo))
                 if len(local_heap) > max_best_length:
                     heapq.heappop(local_heap)
         cnt += 1
@@ -132,23 +127,26 @@ def process_hccombo(hccombo, leggings_boots, all_rings, bracelets_necklaces, sta
 def get_permutations(database_path):
     stat_to_optimise = get_stat_to_optimise()
     max_best_length = get_max_best_length()
+
+    print('started running. Please wait ...')
+
+    skill_points_req_array_pos = (names_and_indices.STAT_INDICES["strength"], names_and_indices.STAT_INDICES["dexterity"], names_and_indices.STAT_INDICES["intelligence"], names_and_indices.STAT_INDICES["defense"], names_and_indices.STAT_INDICES["agility"])
+
     items = parser.parse_items(database_path)
     helmets, chestplates, leggings, boots, rings, bracelets, necklaces, spears, bows, daggers, wands, reliks = items
-    weapons = dict(**spears, **bows, **daggers ,**wands, **reliks)
+    weapons = spears + bows + daggers + wands + reliks
     
-    best_list = []
-    worst_best_value = 0
 
-    helmets_chestplates = [x for x in precompute(helmets, chestplates)]
-    leggings_boots = [x for x in precompute(leggings, boots)]
-    all_rings = [x for x in precompute(rings, rings)]
-    bracelets_necklaces = [x for x in precompute(bracelets, necklaces)]
+    helmets_chestplates = [x for x in precompute(helmets, chestplates, skill_points_req_array_pos)]
+    leggings_boots = [x for x in precompute(leggings, boots, skill_points_req_array_pos)]
+    all_rings = [x for x in precompute(rings, rings, skill_points_req_array_pos)]
+    bracelets_necklaces = [x for x in precompute(bracelets, necklaces, skill_points_req_array_pos)]
 
     start_time = time.time()
     with ProcessPoolExecutor(max_workers=mp.cpu_count()) as executor:
         # Submit all hccombo processing tasks
         futures = []
-        for idx, hccombo in enumerate(helmets_chestplates):
+        for index, hccombo in enumerate(helmets_chestplates):
             future = executor.submit(
                 process_hccombo,
                 hccombo,
@@ -157,8 +155,9 @@ def get_permutations(database_path):
                 bracelets_necklaces,
                 stat_to_optimise,
                 max_best_length,
-                idx + 1,
-                len(helmets_chestplates)
+                index + 1,
+                len(helmets_chestplates),
+                skill_points_req_array_pos
             )
             futures.append(future)
         
@@ -172,10 +171,11 @@ def get_permutations(database_path):
             print(f"Progress: {done}/{total} combinations processed")
         
         # Merge and sort final results
-        all_results.sort(key=lambda x: x[list(x.keys())[0]][stat_to_optimise], reverse=True)
+        all_results.sort(key=lambda x: x[1][stat_to_optimise], reverse=True)
         best_list = all_results[:max_best_length]
 
         print(f"Total execution time: {time.time() - start_time:.2f} seconds")
+    return best_list
 
                     
 
