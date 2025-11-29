@@ -5,13 +5,14 @@ import itertools
 import numpy as np
 from numba import njit
 import multiprocessing as mp
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 import heapq
 import time
 
 
 
 BENCHMARK = True  # Set to False to use interactive input
+SINGLE_THREADED = False  # Set to True to disable multiprocessing
 
 MAX_SKILL_POINTS: int = 595
 MAX_STRREQ: int = 320
@@ -92,6 +93,7 @@ def dict_from_map_object(to_convert) -> dict[str, dict[str, int]]:
 
 def process_hccombo_wrapper(hccombo, leggings_boots, all_rings, bracelets_necklaces, stat_to_optimise, max_best_length, index, total, skill_points_req_array_pos: tuple):
     print(f'starting process {index}/{total}')
+    #precompile_numba()
     return process_hccombo(hccombo, leggings_boots, all_rings, bracelets_necklaces, stat_to_optimise, max_best_length, index, total, skill_points_req_array_pos)
 
 
@@ -156,7 +158,6 @@ def get_permutations(database_path):
     items = parser.parse_items(database_path)
     helmets, chestplates, leggings, boots, rings, bracelets, necklaces, spears, bows, daggers, wands, reliks = items
     weapons = spears + bows + daggers + wands + reliks
-    
 
     helmets_chestplates = [x for x in precompute(helmets, chestplates, skill_points_req_array_pos)]
     leggings_boots = [x for x in precompute(leggings, boots, skill_points_req_array_pos)]
@@ -164,37 +165,54 @@ def get_permutations(database_path):
     bracelets_necklaces = [x for x in precompute(bracelets, necklaces, skill_points_req_array_pos)]
 
     start_time = time.time()
-    with ProcessPoolExecutor(max_workers=mp.cpu_count()) as executor:
-        # Submit all hccombo processing tasks
-        futures = []
-        for index, hccombo in enumerate(helmets_chestplates):
-            future = executor.submit(
-                process_hccombo_wrapper,
-                hccombo,
-                leggings_boots,
-                all_rings,
-                bracelets_necklaces,
-                stat_to_optimise,
-                max_best_length,
-                index + 1,
-                len(helmets_chestplates),
-                skill_points_req_array_pos
-            )
-            futures.append(future)
-        # Collect results from all workers
+    if SINGLE_THREADED:
+        # Single-threaded processing
         all_results = []
-        total = len(futures)
-        done = 0
-        for future in futures:
-            all_results.extend(future.result())
-            done += 1
-            print(f"Progress: {done}/{total} combinations processed")
-        
-        # Merge and sort final results
+        total = len(helmets_chestplates)
+        precompile_numba()
+        for index, hccombo in enumerate(helmets_chestplates):
+            print(f'Progress: {index + 1}/{total} combinations started')
+            result = process_hccombo(hccombo, leggings_boots, all_rings, bracelets_necklaces, stat_to_optimise, max_best_length, index + 1, total, skill_points_req_array_pos)
+            all_results.extend(result)
+            print(f"Progress: {index + 1}/{total} combinations processed")
+
+        # Sort final results
         all_results.sort(key=lambda x: x[1][stat_to_optimise], reverse=True)
         best_list = all_results[:max_best_length]
+    else:
+        # Multiprocessing version
+        precompile_numba()
+        with ThreadPoolExecutor(max_workers=mp.cpu_count()) as executor:
+            # Submit all hccombo processing tasks
+            futures = []
+            for index, hccombo in enumerate(helmets_chestplates):
+                future = executor.submit(
+                    process_hccombo_wrapper,
+                    hccombo,
+                    leggings_boots,
+                    all_rings,
+                    bracelets_necklaces,
+                    stat_to_optimise,
+                    max_best_length,
+                    index + 1,
+                    len(helmets_chestplates),
+                    skill_points_req_array_pos
+                )
+                futures.append(future)
+            # Collect results from all workers
+            all_results = []
+            total = len(futures)
+            done = 0
+            for future in futures:
+                all_results.extend(future.result())
+                done += 1
+                print(f"Progress: {done}/{total} combinations processed")
 
-        print(f"Total execution time: {time.time() - start_time:.2f} seconds")
+            # Merge and sort final results
+            all_results.sort(key=lambda x: x[1][stat_to_optimise], reverse=True)
+            best_list = all_results[:max_best_length]
+
+    print(f"Total execution time: {time.time() - start_time:.2f} seconds")
     return best_list
 
                     
