@@ -89,12 +89,25 @@ def dict_from_map_object(to_convert) -> dict[str, dict[str, int]]:
     return converted
 
 
-#@njit
+
+def process_hccombo_wrapper(hccombo, leggings_boots, all_rings, bracelets_necklaces, stat_to_optimise, max_best_length, index, total, skill_points_req_array_pos: tuple):
+    print(f'starting process {index}/{total}')
+    return process_hccombo(hccombo, leggings_boots, all_rings, bracelets_necklaces, stat_to_optimise, max_best_length, index, total, skill_points_req_array_pos)
+
+
+
+
+
+
+
+
+@njit
 def process_hccombo(hccombo, leggings_boots, all_rings, bracelets_necklaces, stat_to_optimise, max_best_length, index, total, skill_points_req_array_pos: tuple):
-    local_heap = []
-    len_lb = len(leggings_boots)
-    count = 0
-    print(f"Starting process {index}/{total} for combos")
+    # Initialize top list with dummy low values
+    dummy_stats = np.full(108, -999999, dtype=np.int64)
+    dummy_combo = ('dummy', dummy_stats)
+    local_top = [dummy_combo] * max_best_length
+    local_values = [-999999] * max_best_length
 
     for lbcombo in leggings_boots:
         hclbcombo = combine(hccombo, lbcombo)
@@ -111,15 +124,23 @@ def process_hccombo(hccombo, leggings_boots, all_rings, bracelets_necklaces, sta
                 if not skill_point_fast_check(values, skill_points_req_array_pos):
                     continue
                 current_value = values[stat_to_optimise]
-                heapq.heappush(local_heap, (-current_value, final_combo))
-                if len(local_heap) > max_best_length:
-                    heapq.heappop(local_heap)
-        count += 1
-        if count % 20 == 0:
-            print(f"Process {index}/{total}: {count}/{len_lb} leggings_boots processed")
+                # Find the min in local_values
+                min_val = min(local_values)
+                if current_value > min_val:
+                    # Replace the one with min_val
+                    idx = local_values.index(min_val)
+                    local_top[idx] = final_combo
+                    local_values[idx] = current_value
 
-    print(f"Process {index}/{total} completed")
-    return [combo for _, combo in local_heap]
+    # Bubble sort local_top by local_values descending
+    for i in range(max_best_length):
+        for j in range(i + 1, max_best_length):
+            if local_values[j] > local_values[i]:
+                # Swap
+                local_values[i], local_values[j] = local_values[j], local_values[i]
+                local_top[i], local_top[j] = local_top[j], local_top[i]
+
+    return local_top
 
 
 
@@ -148,7 +169,7 @@ def get_permutations(database_path):
         futures = []
         for index, hccombo in enumerate(helmets_chestplates):
             future = executor.submit(
-                process_hccombo,
+                process_hccombo_wrapper,
                 hccombo,
                 leggings_boots,
                 all_rings,
@@ -160,7 +181,8 @@ def get_permutations(database_path):
                 skill_points_req_array_pos
             )
             futures.append(future)
-        
+        print('finished muliprocessing everything')
+        print('collecting results')
         # Collect results from all workers
         all_results = []
         total = len(futures)
@@ -186,6 +208,10 @@ def precompile_numba():
     # Precompile Numba functions
     skill_point_fast_check(np.zeros(108, dtype=np.int64), (0,1,2,3,4))
     combine(('test', np.zeros(108)), ('test', np.zeros(108)))
+    # Precompile process_hccombo
+    dummy_combo = ('test', np.zeros(108, dtype=np.int64))
+    dummy_list = [dummy_combo]
+    process_hccombo(dummy_combo, dummy_list, dummy_list, dummy_list, 0, 1, 1, 1, (0,1,2,3,4))
     print('Done!')
 
 
