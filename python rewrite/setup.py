@@ -1,3 +1,4 @@
+import numpy
 from setuptools import setup, Extension
 from Cython.Build import cythonize
 
@@ -5,6 +6,7 @@ extensions = [
     Extension(
         "cython_main",
         ["cython_main.pyx"],
+        include_dirs=[numpy.get_include()],
     ),
 ]
 

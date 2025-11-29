@@ -14,7 +14,7 @@ MAX_INTREQ: int = 283
 MAX_DEFREQ: int = 284
 MAX_AGIREQ: int = 333
 
-cdef bint skill_point_fast_check(const cnp.int64_t[:] stats, tuple required_stats):
+cpdef bint skill_point_fast_check(const cnp.int64_t[:] stats, tuple required_stats):
     cdef int str_req = stats[required_stats[0]]
     cdef int dex_req = stats[required_stats[1]]
     cdef int int_req = stats[required_stats[2]]
@@ -34,7 +34,7 @@ cdef bint skill_point_fast_check(const cnp.int64_t[:] stats, tuple required_stat
         return False
     return True
 
-cdef tuple combine(tuple combo1, tuple combo2):
+cpdef tuple combine(tuple combo1, tuple combo2):
     cdef cnp.ndarray[cnp.int64_t, ndim=1] combo1_values = combo1[1]
     cdef cnp.ndarray[cnp.int64_t, ndim=1] combo2_values = combo2[1]
     cdef cnp.ndarray[cnp.int64_t, ndim=1] resulting_stats = np.add(combo1_values, combo2_values)
@@ -52,7 +52,7 @@ def precompute(items1, items2, skill_points_req_array_pos):
             continue
         yield (resulting_name, resulting_stats)
 
-cdef list process_hccombo(tuple hccombo, list leggings_boots, list all_rings, list bracelets_necklaces, int stat_to_optimise, int max_best_length, int index, int total, tuple skill_points_req_array_pos):
+cpdef list process_hccombo(tuple hccombo, list leggings_boots, list all_rings, list bracelets_necklaces, int stat_to_optimise, int max_best_length, int index, int total, tuple skill_points_req_array_pos):
     cdef list local_heap = []
     cdef int len_lb = len(leggings_boots)
     cdef int count = 0

@@ -99,7 +99,7 @@ def precompile_numba():
     print('this might take a while...')
     # Precompile Numba functions
     skill_point_fast_check(np.zeros(108, dtype=np.int64), (0,1,2,3,4))
-    combine(('test', np.zeros(108)), ('test', np.zeros(108)))
+    combine(('test', np.zeros(108, dtype=np.int64)), ('test', np.zeros(108, dtype=np.int64)))
     print('Done!')
 
 
@@ -117,7 +117,7 @@ def precompile_numba():
 
 def main():
     precompile_numba()
-    database_path = "data\\items.json"
+    database_path = "../data/items.json"
     get_permutations(database_path)
 
 
